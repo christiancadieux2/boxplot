@@ -1,0 +1,235 @@
+<html>
+<head>
+    <title>Candlestick Chart</title>
+    <link type="text/css" rel="stylesheet" href="/js/ex.css"/>
+    <link type="text/css" rel="stylesheet" href="/js/jquery-ui.css"/>
+    <script type="text/javascript" src="/js/jquery-2.1.1.js"></script>
+    <script type="text/javascript" src="/js/jquery-ui.js"></script>
+    <script type="text/javascript" src="/js/protovis-d3.2-max.js"></script>
+    <script type="text/javascript" src="/js/jquery.tipsy.js"></script>
+    <script type="text/javascript" src="/js/tipsy.js"></script>
+    <script type="text/javascript" src="/js/dateformat.js"></script>
+    <script type="text/javascript" src="/js/boxstats.js"></script>
+    <link type="text/css" href="/js/tipsy.css" rel="stylesheet"/>
+    <!-- script type="text/javascript" src="/js/vix.js"></script> -->
+
+   <style>
+       .orange {
+           border:0; color:#f6931f; font-weight:bold;
+       }
+       table.asr {
+            border: none;
+            border: 1px solid #E0E0E0;
+
+       }
+   </style>
+</head>
+
+<body style="padding:1px">
+
+<h3>Statistical Aggregation using
+    <a href="http://en.wikipedia.org/wiki/Box_plot">Box&Whisker</a></h3>
+
+
+<table border="0" class="asr" width="98%" ><tr><td>
+    <table border="0" ><tr>
+    <td>Start-Date:</td><td><td><div class="orange" id="start_date"></div></td>
+    <td>&nbsp;End-Date:</td><td><div class="orange" id="end_date"></div></td>
+
+
+    <td>&nbsp;<label for="amount">#Points per Box:</label></td>
+    <td><input type="text" id="amount" style="background-color:#F8F8F8" readonly size=6 class="orange"></td>
+        <td>&nbsp;#Points:</td>
+        <td><input type="text" size="4" id="point_count">
+        <input type="button" id="point_count_b" value="Re-Generate"></td>
+
+    <td></td>
+    </td></tr>
+    <tr><td>&nbsp;&nbsp;&nbsp;# Boxes:</td>
+        <td colspan="20" cellpadding="0" cellspacing="0">
+        <table border="0"><tr>
+            <td><div id="slider-range-min" style="width:390px;margin:1px"></div></td>
+            <td>&nbsp;</td>
+            <td><div class=orange id="box_count"></div></td>
+            <td></td>
+        </td>
+
+        </tr></table>
+
+    </td>
+
+</table></td></tr>
+<tr><td><div id="fig"></div></td></tr></table>
+
+
+
+<div id="zoom_section">
+<b>Zoom</b><br>
+
+<table border="0" class="asr" width="98%" bgcolor="#F8F8E8"><tr><td colspan="3">
+    <table border="0" ><tr>
+        <td>Start-Date:</td><td><td><div class="orange" id="start_date2"></div></td>
+        <td>&nbsp;End-Date:</td><td><div class="orange" id="end_date2"></div></td>
+
+        <td width="300">&nbsp;</td>
+
+        <tr><td colspan="20" cellpadding="0" cellspacing="0">
+            <table border="0"><tr>
+                <td><div id="slider-range-min2" style="width:390px;margin:1px"></div></td>
+                <td><div class=orange id="box_count2"></div></td>
+                </td>
+            </tr></table>
+
+        </td>
+
+
+    </table></td></tr>
+
+
+
+<tr>
+    <td colspan="3"><div id="fig2"></div></td></tr>
+<tr>
+        <td>
+            <center><input type="button" value="<- Scroll Left" id="prev_page"></center>
+        </td>
+        <td><center><input type="button" value="Zoom Out" id="reset"></center>  </td>
+        <td>
+            <center><input type="button" value="-> Scroll Right" id="next_page"></center>
+        </td>
+        </td></tr>
+</table>
+</div>
+
+
+
+<script type="text/javascript">
+
+
+
+$(function () {
+
+    var boxstat1, boxstat2;
+    var slider_max = 100;
+    var INIT_CNT = 20;
+
+
+    $("#zoom_section").hide();
+    var window_width = $(window).width() - 120;
+    var window_height = $(window).height() - 150;
+
+    var updateHeader = function(vix2) {
+        $("#point_count").val(vix2.point_count)
+        console.log("box_count = " + this.box_count + ", start=" + vix2.start +
+                ", end=" + vix2.end)
+        $("#box_count").text(vix2.box_count)
+        $("#start_date").text(vix2.start_time)
+        $("#year1").text(vix2.start);
+        $("#year2").text(vix2.end);
+        $("#end_date").text(vix2.end_time)
+       // $("#amount").val($("#slider-range-min").slider("value"));
+        $("#amount").val(vix2.group_size);
+
+        $("#slider-range-min").slider("value", vix2.box_count);
+    }
+
+
+    var updateHeader2 = function(vix2) {
+
+        $("#start_date2").text(vix2.start_time)
+        $("#end_date2").text(vix2.end_time)
+        $("#slider-range-min2").slider("value", vix2.box_count);
+        $("#box_count2").text(vix2.box_count);
+        $("#zoom_section").show();
+        //$('.tipsy:last').remove();
+
+    }
+    var wh = window_height/3;
+    boxstat2 = new Boxstats('2' ,'fig2', INIT_CNT,window_width, wh, updateHeader2, null, slider_max);
+    boxstat1 = new Boxstats('1' ,'fig', INIT_CNT,window_width, wh, updateHeader, boxstat2, slider_max)
+    boxstat2.parent_graph = boxstat1;
+
+    $("#reset").click(function () {
+        //v = {date_range: '', scale: 1, slide_value: 0}
+        if (boxstat2.stack.length > 0) {
+            var v = boxstat2.stack.pop();
+            console.log("range=" + v.date_range + ", scale=" + v.scale)
+            $("#slider-range-min2").slider("value", v.slide_value);
+            boxstat2.date_range = v.date_range;
+            boxstat2.graph(v.scale)
+        }
+    });
+
+    function p_scroll(inc1) {
+        var d0 = boxstat2.date_range;
+        var r = boxstat2.date_range.split(',');
+        var delta = (r[1] - r[0]) / 2 ;
+
+        console.log("delta=" + delta);
+        var n0 = inc1 == 1 ? parseInt(r[0]) + delta : r[0] - delta;
+        var n1 = inc1 == 1 ? parseInt(r[1]) + delta : r[1] - delta;
+        boxstat2.date_range = n0 + "," + n1;
+        boxstat1.selected.stime = n0;
+        boxstat1.selected.etime = n1;
+        boxstat1.vis.render();
+        boxstat1.hover.stime = 0;
+        console.log('range : ' + d0 + ' => ' + boxstat2.date_range);
+        boxstat2.graph(boxstat2.save_scale)
+    }
+
+    $("#prev_page").click(function () {
+        p_scroll(-1)
+    });
+    $("#next_page").click(function () {
+        p_scroll(1)
+    });
+
+
+    $('#point_count_b').click(function () {
+        count = $("#point_count").val();
+        $.ajax({
+            type: "GET",
+            url: "/size?size=" + count,
+            async: false}).responseText;
+
+        $("#slider-range-min").slider("value", INIT_CNT);
+        boxstat1.graph(INIT_CNT);
+    });
+
+
+    // ui.value : number of boxes to show
+
+    $("#slider-range-min").slider({
+        range: "min",
+        value: 3,
+        min: 3, step: 5,
+        max: slider_max,
+        slide: function (event, ui) {
+            boxstat1.slide_value = ui.value;
+            boxstat1.graph(ui.value)
+
+        }
+    });
+
+    $("#slider-range-min2").slider({
+        range: "min",
+        value: 3,
+        min: 3, step: 5,
+        max: slider_max,
+        slide: function (event, ui) {
+            boxstat2.slide_value = ui.value;
+            if (boxstat2.save_scale)
+                boxstat2.graph(ui.value)
+
+        }
+    });
+
+
+    boxstat1.graph(INIT_CNT);
+
+});
+
+</script>
+
+
+</html>

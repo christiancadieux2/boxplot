@@ -1,0 +1,161 @@
+<html>
+<head>
+    <title>Candlestick Chart</title>
+    <link type="text/css" rel="stylesheet" href="/js/ex.css"/>
+    <link type="text/css" rel="stylesheet" href="/js/jquery-ui.css"/>
+    <script type="text/javascript" src="/js/jquery-2.1.1.js"></script>
+    <script type="text/javascript" src="/js/jquery-ui.js"></script>
+    <script type="text/javascript" src="/js/protovis-d3.2-max.js"></script>
+    <script type="text/javascript" src="/js/jquery.tipsy.js"></script>
+    <script type="text/javascript" src="/js/tipsy.js"></script>
+    <script type="text/javascript" src="/js/dateformat.js"></script>
+    <link type="text/css" href="/js/tipsy.css" rel="stylesheet"/>
+    <!-- script type="text/javascript" src="/js/vix.js"></script> -->
+    <!-- http://mbostock.github.io/protovis/docs/scale.html -->
+
+</head>
+
+<body>
+<h2>Test</h2>
+
+<div id="fig"></div>
+
+<br><br>
+<label for="amount">Detail Level:</label>
+<input type="text" id="amount" readonly style="border:0; color:#f6931f; font-weight:bold;">
+</p>
+<div id="slider-range-min" style="width:400px;margin:5px"></div>
+
+<script type="text/javascript">
+
+    $(function () {
+        var URL = "/data";
+        var vix = [];
+        var vis, x, y;
+        var dateFormat = pv.Format.date("%d-%b-%y");
+        var w = 800, h = 300, kx = w / h, ky = 1;
+
+
+        function scale_xy() {
+            x = pv.Scale.linear(vix, function (d) {
+                return d[0]
+            }).range(0, w);
+
+            y = pv.Scale.linear(vix,
+                    function (d) {
+                        return d[1] - 5
+                    },
+                    function (d) {
+                        return d[5]
+                    }).range(0, h).nice();
+
+            /* Dates. */
+            vis.add(pv.Rule)
+                    .data(x.ticks())
+                    .left(x)
+                    .strokeStyle("#eee")
+                    .anchor("bottom").add(pv.Label)
+                    .text(x.tickFormat);
+
+            /* Y Coordinates */
+            vis.add(pv.Rule)
+                    .data(y.ticks(10))
+                    .bottom(y)
+                    .left(-10)
+                    .right(-10)
+                    .strokeStyle(function (d) {
+                        return  d % 10 ? "#ccc" : "#333"
+                    })
+                    .anchor("left").add(pv.Label)
+                    .textStyle(function (d) {
+                        return d % 10 ? "#999" : "#333"
+                    })
+                    .text(y.tickFormat);
+
+        }
+
+
+        function getData(detail) {
+            var data1 = $.ajax({
+                type: "GET",
+                url: URL + "?detail=" + detail,
+                async: false}).responseText;
+
+            vix = JSON.parse(data1);
+            vix.forEach(function (d) {
+                return d[0] = dateFormat.parse(d[0])
+            });
+
+
+        }
+
+
+        function graph(scale) {
+
+            vis = new pv.Panel()
+                    .width(w + 10)
+                    .height(h)
+                    .margin(10)
+                    .left(40).canvas('fig');
+
+            getData(scale);
+            scale_xy();
+
+            /* Candlestick. */
+            vis.add(pv.Rule)
+                    .data(vix)
+                    .lineWidth(2)
+                    .left(function (d) {
+                        return x(d[0])
+                    })
+                    .bottom(function (d) {
+                        return y(d[1])
+                    })
+                    .height(function (d) {
+                        //console.log("height=" + d[1])
+                        return Math.abs(y(d[5]) - y(d[1]))
+                    })
+                    .strokeStyle(function (d) {
+                        return "red"
+                    })
+                    .add(pv.Rule)
+                    .bottom(function (d) {
+                        return y(d[2])
+                    })
+                    .height(function (d) {
+                        return Math.abs(y(d[2]) - y(d[4]))
+                    })
+                    .lineWidth(6)
+                    .text(function (d) {
+                        return d[0].formatDate("yyyy-MM-dd") + "<br> " +
+                                "Max:" + d[5] + "<br>High:" + d[4] + "<br>Med:" +
+                                d[3] + "<br>Low:" + d[2] + "<br>Min:" + d[1]
+                    })
+                    .event("mouseover", pv.Behavior.tipsy(
+                            {gravity: "w", html: true, fade: false}));
+
+
+
+            vis.render();
+        }
+
+        graph(1);
+
+
+        $("#slider-range-min").slider({
+            range: "min",
+            value: 0,
+            min: 0, step: 10,
+            max: 100,
+            slide: function (event, ui) {
+                graph(ui.value);
+                $("#amount").val(ui.value + " %");
+            }
+        });
+        $("#amount").val($("#slider-range-min").slider("value") + " %");
+    });
+
+</script>
+
+
+</html>
